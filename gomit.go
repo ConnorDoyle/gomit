@@ -1,53 +1,43 @@
 package gomit
 
 import (
-	"fmt"
+	// "fmt"
+	"time"
 )
 
-type EventController struct {
-	Emmitters map[string]*Emitter
-}
-
 type Emitter struct {
-	Name          string
-	Subscriptions []Subscriber
+	Handlers []func(Event)
 }
 
-type Subscriber func(*Event)
+type SourceEvent interface {
+}
 
 type Event struct {
-	Header Header
+	Header      EventHeader
+	SourceEvent SourceEvent
 }
 
-type Header struct {
-	Name string
+type EventHeader struct {
+	Time     time.Time
+	Metadata map[string]string
 }
 
-func NewEventController() *EventController {
-	e := new(EventController)
-	e.Emmitters = make(map[string]*Emitter)
-	return e
-}
-
-func (e *EventController) RegisterEmitter(em *Emitter) {
-	e.Emmitters[em.Name] = em
-}
-
-func (e *EventController) Subscribe(name string, f Subscriber) {
-	if em, ok := e.Emmitters[name]; ok {
-		em.Subscriptions = append(em.Subscriptions, f)
-	} else {
-		panic("No emitter : " + name)
+func NewEvent(s SourceEvent, m map[string]string) Event {
+	if m == nil {
+		m = make(map[string]string)
 	}
+	h := EventHeader{time.Now(), m}
+
+	event := Event{h, s}
+	return event
 }
 
-func (e *Emitter) FireEvent(event *Event) {
-	fmt.Printf(" >>>> Emitter [%s] firing event [%s]\n", e.Name, event.Header.Name)
-	for _, f := range e.Subscriptions {
+func (e *Emitter) Fire(event Event) {
+	for _, f := range e.Handlers {
 		go f(event)
 	}
 }
 
-func Foo() {
-
+func (e *Emitter) AddHandler(f func(Event)) {
+	e.Handlers = append(e.Handlers, f)
 }
